@@ -1,7 +1,8 @@
 [package]
 name = "abwab"
-version = "0.1.0"
-edition = "2021"
+version = "1.0"
+edition = "2024"
+author = "doomed-neko"
 
 [dependencies]
 egui-video = "0.9.0"
