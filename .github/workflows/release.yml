@@ -69,19 +69,16 @@ jobs:
 
       - name: Install developer package dependencies
         if: matrix.build == 'x86_64-linux'
-        run: sudo apt-get update && sudo apt-get install libasound2-dev libdbus-1-dev pkg-config protobuf-compiler libgstreamer1.0-0 libunwind-dev libgstreamer1.0-dev libmpv-dev
-
+        run: sudo apt-get update && sudo apt-get install libgtk-3-dev
       - name: Install developer package dependencies
         if: matrix.build == 'x86_64-macos'
         run: |
           brew update
-          brew install protobuf 
-          brew install sound-touch
-          brew install libsixel
+          brew install gtk+3
 
       - name: Install developer package dependencies
         if: matrix.build == 'x86_64-windows'
-        run: choco install protoc
+        run: choco install gtk-runtime
 
       - name: Run cargo test (cargo)
         if: (matrix.build == 'x86_64-linux' || matrix.build == 'x86_64-macos' || matrix.build == 'x86_64-windows') && !matrix.cross
