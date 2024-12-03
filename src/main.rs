@@ -89,7 +89,13 @@ async fn get_vid_data(obj: Abwaab) -> Value {
         .send()
         .await
         .unwrap();
-    let e: Value = e.json().await.unwrap();
+    let e: Value = match e.json().await {
+        Ok(t) => t,
+        Err(e) => {
+            println!("{e}");
+            exit(-6)
+        }
+    };
     let status = e.get("status").unwrap().to_owned();
     if let Value::String(v) = status {
         if v == *"200" {
