@@ -133,7 +133,7 @@ async fn ui() -> wry::Result<()> {
             target_os = "ios",
             target_os = "android"
         ))]
-        let _webview = _web.build(&window)?;
+        let _webview = _web.build(&win)?;
         #[cfg(not(any(
             target_os = "windows",
             target_os = "macos",
