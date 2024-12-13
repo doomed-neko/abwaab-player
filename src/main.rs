@@ -4,19 +4,10 @@ use std::{
     borrow::Cow,
     collections::HashMap,
     env::{args, Args},
-    process::exit,
+    process::{exit, Command},
     string::String,
 };
-use tao::{
-    event::{StartCause, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
-};
 use url::Url;
-use wry::{
-    http::{HeaderMap, HeaderValue},
-    WebViewBuilder,
-};
 
 const ABWAAB_URL: &str = "https://gw.abgateway.com/content/lesson";
 
@@ -56,6 +47,17 @@ impl Abwaab {
     }
 }
 
+fn get_id(resp: &str) -> String {
+    let re = r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}";
+    let re = regex::Regex::new(re).unwrap();
+    let a = re.find(resp);
+    a.unwrap().as_str().to_string()
+}
+fn mk_url(id: &str) -> std::string::String {
+    const MAINURL: &str = "https://vz-99e5c202-ca5.becdn.net/";
+    const URLTRAI: &str = "/playlist.m3u8";
+    format!("{MAINURL}{id}{URLTRAI}")
+}
 fn get_params(url: Url) -> HashMap<String, String> {
     if url.scheme() != "abwaab-player" {
         std::process::exit(-1);
@@ -71,8 +73,8 @@ fn get_params(url: Url) -> HashMap<String, String> {
 fn parse_args(args: Args) -> Url {
     let a = args.last().unwrap();
     let url: Url;
-    if let Ok(u) = Url::parse(&a) {
-        url = u.to_owned();
+    if let Ok(u) = Url::parse(a.as_str()) {
+        url = u;
     } else {
         exit(-5)
     }
@@ -91,11 +93,9 @@ async fn get_vid_data(obj: Abwaab) -> Value {
         .unwrap();
     let e: Value = match e.json().await {
         Ok(t) => t,
-        Err(e) => {
-            println!("{e}");
-            exit(-6)
-        }
+        Err(_) => exit(-6),
     };
+    dbg!(&e);
     let status = e.get("status").unwrap().to_owned();
     if let Value::String(v) = status {
         if v == *"200" {
@@ -109,63 +109,39 @@ async fn get_vid_data(obj: Abwaab) -> Value {
     std::process::exit(-2)
 }
 
-async fn ui() -> wry::Result<()> {
+async fn req(url: &str) -> String {
+    let req = http::Client::new();
+    let c = req
+        .get(url)
+        .header("Platform", "web")
+        .header("Referer", "https://www.abwaabiraq.com/")
+        .send()
+        .await
+        .unwrap();
+    let t = c.text().await.unwrap();
+    let a = get_id(&t);
+
+    mk_url(&a)
+}
+
+async fn ui() -> Result<(), ()> {
     let url: Url = parse_args(args());
     let params = get_params(url);
     let obj = Abwaab::new(params);
     let vid_data = get_vid_data(obj);
     let vid_url = vid_data.await.get("lesson_url").unwrap().to_owned();
     if let Value::String(url) = vid_url {
-        let event_loop = EventLoop::new();
-        let win = WindowBuilder::new()
-            .with_title("abwaab-player")
-            .build(&event_loop)
-            .unwrap();
-        let mut head = HeaderMap::new();
-        head.insert(
-            "Referer",
-            HeaderValue::from_str("https://www.abwaabiraq.com/").unwrap(),
-        );
-        let _web = WebViewBuilder::new().with_url(url).with_headers(head);
-        #[cfg(any(
-            target_os = "windows",
-            target_os = "macos",
-            target_os = "ios",
-            target_os = "android"
-        ))]
-        let _webview = _web.build(&win)?;
-        #[cfg(not(any(
-            target_os = "windows",
-            target_os = "macos",
-            target_os = "ios",
-            target_os = "android"
-        )))]
-        let _webview = {
-            use tao::platform::unix::WindowExtUnix;
-            use wry::WebViewBuilderExtUnix;
-            let vbox = win.default_vbox().unwrap();
-            _web.build_gtk(vbox)?
-        };
-
-        event_loop.run(move |ev, _, ctrl| {
-            *ctrl = ControlFlow::Wait;
-
-            match ev {
-                tao::event::Event::NewEvents(StartCause::Init) => println!("Running"),
-                tao::event::Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => {
-                    *ctrl = ControlFlow::Exit;
-                }
-                _ => (),
-            }
-        });
+        let a = req(&url).await;
+        let _ = Command::new("sh")
+            .arg("-c")
+            .arg(format!("/home/pasta/.etc/bin/play_abw {a}"))
+            .output()
+            .expect("failed to execute process");
     }
     Ok(())
 }
 
 #[tokio::main()]
-async fn main() -> wry::Result<()> {
+async fn main() -> Result<(), ()> {
     ui().await
 }

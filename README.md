@@ -1,5 +1,7 @@
 # abwaab-player
 
+# THIS PROJECT HAS BEEN DISCONTINUED
+
 This is an API wrapper for the original player provided by <https://abwaabiraq.com>
 
 ## Building
